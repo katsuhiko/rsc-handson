@@ -1,5 +1,8 @@
 # rsc-handson
 
+[[ja]](./README.md)
+[[en]](./README-en.md)
+
 このリポジトリはReact Server Component（以下、RSC）を実際に体験して理解するためのハンズオン用に作りました。自由にご利用ください。
 
 ```bash
