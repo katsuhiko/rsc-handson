@@ -11,6 +11,8 @@ git clone https://github.com/coder-ka/rsc-handson
 
 データの取得・登録、そして認証までをカバーすることで実用性を示しました。
 
+ハンズオンの開催者側は、VSCode等のエディタ画面を固定で共有し、裏でこのREADMEのテキストをベースに進めることをオススメします。
+
 # 目次
 
 - [目次](#目次)
@@ -92,6 +94,16 @@ http://localhost:3000
 
 これで環境構築は完了です。
 
+# DB確認
+
+DBの確認を兼ねて、予め用意したinsert-todo.tsを実行してください。
+
+```bash
+npx tsx insert-todo.ts
+```
+
+何回か実行してみてください。
+
 # Next.jsを使う理由とRSCの現在
 
 RSCは、クライアント用のバンドルとサーバー用のバンドルに分かれてコンパイルされるため、バンドラーによるサポートが必要になります。
@@ -132,11 +144,11 @@ export default async function Page() {
 
     const todos = await prismaClient.todo.findMany();
 
-    return <div>
+    return <ul>
       {
-        todos.map(x => <div key={x.id}>{x.name}</div>)
+        todos.map(x => <li key={x.id}>{x.name}</li>)
       }
-    </div>;
+    </ul>;
   } catch (error) {
     return <div>システムエラーです</div>
   } finally {
@@ -146,14 +158,6 @@ export default async function Page() {
 ```
 
 画面を更新してください。
-
-このままだとデータが取れているか分からないので、予め用意したinsert-todo.tsを実行してください。
-
-```bash
-npx tsx insert-todo.ts
-```
-
-何回か実行し、画面を再度更新してみてください。
 
 登録したTODOが表示されていることが分かります。
 
@@ -191,16 +195,13 @@ export default async function Page() {
 
     return (
       <div>
-+        <input
-+          style={{
-+            marginRight: "4px",
-+          }}
-+          type="text"
-+        />
-+        <button>追加</button>
-        {todos.map((x) => (
-          <div key={x.id}>{x.name}</div>
-        ))}
++       <input type="text" />
++       <button>追加</button>
+        <ul>
+          {todos.map((x) => (
+            <li key={x.id}>{x.name}</li>
+          ))}
+        </ul>
       </div>
     );
   } catch (error) {
@@ -217,12 +218,12 @@ export default async function Page() {
 
 `app/page.tsx`
 
-```tsx
+```diff
 import { PrismaClient } from "@prisma/client";
-import { useState } from "react";
++import { useState } from "react";
 
 export default async function Page() {
-  const [todoName, setTodoName] = useState("");
++ const [todoName, setTodoName] = useState("");
 
   const prismaClient = new PrismaClient();
   try {
@@ -233,19 +234,18 @@ export default async function Page() {
     return (
       <div>
         <input
-          style={{
-            marginRight: "4px",
-          }}
           type="text"
-+          value={todoName}
-+          onInput={(e) => setTodoName((e.target as HTMLInputElement).value)}
++         value={todoName}
++         onInput={(e) => setTodoName((e.target as HTMLInputElement).value)}
         />
         <button 
-+          onClick={() => {}}
++         onClick={() => {}}
         >追加</button>
-        {todos.map((x) => (
-          <div key={x.id}>{x.name}</div>
-        ))}
+        <ul>
+          {todos.map((x) => (
+            <li key={x.id}>{x.name}</li>
+          ))}
+        </ul>
       </div>
     );
   } catch (error) {
@@ -274,9 +274,6 @@ export function TodoCreationForm() {
   return (
     <>
       <input
-        style={{
-          marginRight: "4px",
-        }}
         type="text"
         value={todoName}
         onInput={(e) => setTodoName((e.target as HTMLInputElement).value)}
@@ -310,10 +307,12 @@ export default async function Page() {
 
     return (
       <div>
-+        <TodoCreationForm></TodoCreationForm>
-        {todos.map((x) => (
-          <div key={x.id}>{x.name}</div>
-        ))}
++       <TodoCreationForm></TodoCreationForm>
+        <ul>
+          {todos.map((x) => (
+            <li key={x.id}>{x.name}</li>
+          ))}
+        </ul>
       </div>
     );
   } catch (error) {
@@ -337,15 +336,16 @@ export default async function Page() {
 ```diff
 "use client";
 
-import { Todo } from "@prisma/client";
 import { useState } from "react";
 
-+export type CreateTodoFn = ({} : { name: string }) => Promise<Todo>;
++export type CreateTodoFn = ({}: {
++  name: string;
++}) => Promise<{ type: "success" } | { type: "error" }>;
 
-export function TodoCreationForm({
-+    createTodo,
-+} : {
-+    createTodo: CreateTodoFn
+export function TodoCreationForm({ 
++   createTodo
++}: { 
++   createTodo: CreateTodoFn
 }) {
   const [todoName, setTodoName] = useState("");
   return (
@@ -374,8 +374,8 @@ export function TodoCreationForm({
 +import cuid from "cuid";
 import { PrismaClient } from "@prisma/client";
 import { 
-    TodoCreationForm,
-+    CreateTodoFn,
+  TodoCreationForm,
++  CreateTodoFn
 } from "../components/TodoCreationForm";
 
 export default async function Page() {
@@ -387,14 +387,22 @@ export default async function Page() {
 +    try {
 +      await prismaClient.$connect();
 +
-+      return await prismaClient.todo.create({
++      await prismaClient.todo.create({
 +        data: {
 +          id: cuid(),
 +          name,
 +        },
 +      });
++
++      return {
++        type: "success",
++      };
 +    } catch (error) {
 +      console.error(error);
++
++      return {
++        type: "error",
++      };
 +    } finally {
 +      await prismaClient.$disconnect();
 +    }
@@ -409,11 +417,13 @@ export default async function Page() {
     return (
       <div>
         <TodoCreationForm
-+          createTodo={createTodo}
-        ></TodoCreationForm>
-        {todos.map((x) => (
-          <div key={x.id}>{x.name}</div>
-        ))}
++         createTodo={createTodo}>
+        </TodoCreationForm>
+        <ul>
+          {todos.map((x) => (
+            <li key={x.id}>{x.name}</li>
+          ))}
+        </ul>
       </div>
     );
   } catch (error) {
@@ -435,10 +445,11 @@ export default async function Page() {
 ```diff
 "use client";
 
-import { Todo } from "@prisma/client";
 import { useState } from "react";
 
-export type CreateTodoFn = ({}: { name: string }) => Promise<Todo>;
+export type CreateTodoFn = ({}: {
+  name: string;
+}) => Promise<{ type: "success" } | { type: "error" }>;
 
 export function TodoCreationForm({ createTodo }: { createTodo: CreateTodoFn }) {
   const [todoName, setTodoName] = useState("");
@@ -454,15 +465,15 @@ export function TodoCreationForm({ createTodo }: { createTodo: CreateTodoFn }) {
       />
       <button
 +        onClick={async () => {
-+          const todo = await createTodo({
++          const result = await createTodo({
 +            name: todoName,
 +          });
 +
-+          console.log(todo);
-+
-+          setTodoName("");
-+
-+          alert("追加しました。");
++          if (result.type === "success") {
++            alert("登録が完了しました");
++          } else {
++            alert("登録に失敗しました");
++          }
 +        }}
       >
         追加
@@ -477,6 +488,10 @@ export function TodoCreationForm({ createTodo }: { createTodo: CreateTodoFn }) {
 クライアントサイドでは定義した関数が直接呼び出されているように見えますが、実際はクライアントサイドのバンドルに含まれる処理を呼び出しています。
 
 クライアントサイドのバンドルにはサーバーアクションの処理は含まれず、サーバーと通信してサーバーサイドで実際のサーバーアクションの中身が呼び出され、戻り値を受け取っています。
+
+サーバーアクションの中でエラーがthrowされた場合、500エラーが返され、クライアントサイドでエラーがthrowされます。
+
+サーバーサイドで起きたエラーの内容は開発中のみ表示され、プロダクション環境では表示されません。
 
 このように通信部分は隠蔽され、エンドポイントのためのパスを考えたり、インターフェースについて合意するコストが激減します。
 
@@ -508,9 +523,9 @@ revalidatePath('/')
 
 ```diff
 import cuid from "cuid";
-+import { revalidatePath } from "next/cache";
 import { PrismaClient } from "@prisma/client";
 import { TodoCreationForm, CreateTodoFn } from "../components/TodoCreationForm";
++import { revalidatePath } from "next/cache";
 
 export default async function Page() {
   const createTodo: CreateTodoFn = async ({ name }: { name: string }) => {
@@ -521,18 +536,24 @@ export default async function Page() {
     try {
       await prismaClient.$connect();
 
-      const project = await prismaClient.todo.create({
+      await prismaClient.todo.create({
         data: {
           id: cuid(),
           name,
         },
       });
 
-+      revalidatePath("/");
++     revalidatePath("/");
 
-      return project;
+      return {
+        type: "success",
+      };
     } catch (error) {
       console.error(error);
+
+      return {
+        type: "error",
+      };
     } finally {
       await prismaClient.$disconnect();
     }
@@ -547,9 +568,11 @@ export default async function Page() {
     return (
       <div>
         <TodoCreationForm createTodo={createTodo}></TodoCreationForm>
-        {todos.map((x) => (
-          <div key={x.id}>{x.name}</div>
-        ))}
+        <ul>
+          {todos.map((x) => (
+            <li key={x.id}>{x.name}</li>
+          ))}
+        </ul>
       </div>
     );
   } catch (error) {
@@ -581,10 +604,10 @@ export default async function Page() {
 `app/page.tsx`
 
 ```diff
-import { revalidatePath } from "next/cache";
 import cuid from "cuid";
 import { PrismaClient } from "@prisma/client";
 import { TodoCreationForm, CreateTodoFn } from "../components/TodoCreationForm";
+import { revalidatePath } from "next/cache";
 
 export default async function Page() {
   const createTodo: CreateTodoFn = async ({ name }: { name: string }) => {
@@ -595,7 +618,7 @@ export default async function Page() {
     try {
       await prismaClient.$connect();
 
-      const project = await prismaClient.todo.create({
+      await prismaClient.todo.create({
         data: {
           id: cuid(),
           name,
@@ -604,9 +627,15 @@ export default async function Page() {
 
       revalidatePath("/");
 
-      return project;
+      return {
+        type: "success",
+      };
     } catch (error) {
       console.error(error);
+
+      return {
+        type: "error",
+      };
     } finally {
       await prismaClient.$disconnect();
     }
@@ -618,9 +647,11 @@ export default async function Page() {
     return (
       <div>
         <TodoCreationForm createTodo={createTodo}></TodoCreationForm>
-        {todos.map((x) => (
-          <div key={x.id}>{x.name}</div>
-        ))}
+        <ul>
+          {todos.map((x) => (
+            <li key={x.id}>{x.name}</li>
+          ))}
+        </ul>
       </div>
     );
   } catch (error) {
@@ -644,18 +675,18 @@ export default async function Page() {
 +}
 ```
 
-次に、`async`を取り外し、`use`APIでPromiseからデータを取得するようにします。
+次に、`use`APIでPromiseからデータを取得するようにします。
 
 `app/page.tsx`
 
 ```diff
-+import { use } from "react";
-import { revalidatePath } from "next/cache";
 import cuid from "cuid";
 import { PrismaClient } from "@prisma/client";
 import { TodoCreationForm, CreateTodoFn } from "../components/TodoCreationForm";
+import { revalidatePath } from "next/cache";
++import { use } from "react";
 
-export default function Page() {
+export default async function Page() {
   const createTodo: CreateTodoFn = async ({ name }: { name: string }) => {
     "use server";
 
@@ -664,7 +695,7 @@ export default function Page() {
     try {
       await prismaClient.$connect();
 
-      const project = await prismaClient.todo.create({
+      await prismaClient.todo.create({
         data: {
           id: cuid(),
           name,
@@ -673,9 +704,15 @@ export default function Page() {
 
       revalidatePath("/");
 
-      return project;
+      return {
+        type: "success",
+      };
     } catch (error) {
       console.error(error);
+
+      return {
+        type: "error",
+      };
     } finally {
       await prismaClient.$disconnect();
     }
@@ -687,13 +724,30 @@ export default function Page() {
     return (
       <div>
         <TodoCreationForm createTodo={createTodo}></TodoCreationForm>
-        {todos.map((x) => (
-          <div key={x.id}>{x.name}</div>
-        ))}
+        <ul>
+          {todos.map((x) => (
+            <li key={x.id}>{x.name}</li>
+          ))}
+        </ul>
       </div>
     );
   } catch (error) {
     return <div>システムエラーです</div>;
+  }
+}
+
+async function getTodos() {
+  const prismaClient = new PrismaClient();
+  try {
+    await prismaClient.$connect();
+
+    const todos = await prismaClient.todo.findMany();
+
+    return todos;
+  } catch (error) {
+    throw error;
+  } finally {
+    await prismaClient.$disconnect();
   }
 }
 ```
@@ -711,17 +765,17 @@ export default function Page() {
 `app/page.tsx`
 
 ```diff
-import { 
-+  Suspense,
-  use,
-} from "react";
-import { revalidatePath } from "next/cache";
 import cuid from "cuid";
 import { PrismaClient } from "@prisma/client";
 import { TodoCreationForm, CreateTodoFn } from "../components/TodoCreationForm";
+import { revalidatePath } from "next/cache";
+import { 
++  Suspense,
+  use
+} from "react";
 +import { sleep } from "../util/sleep";
 
-export default function Page() {
+export default async function Page() {
   const createTodo: CreateTodoFn = async ({ name }: { name: string }) => {
     "use server";
 
@@ -730,7 +784,7 @@ export default function Page() {
     try {
       await prismaClient.$connect();
 
-      const project = await prismaClient.todo.create({
+      await prismaClient.todo.create({
         data: {
           id: cuid(),
           name,
@@ -739,31 +793,42 @@ export default function Page() {
 
       revalidatePath("/");
 
-      return project;
+      return {
+        type: "success",
+      };
     } catch (error) {
       console.error(error);
+
+      return {
+        type: "error",
+      };
     } finally {
       await prismaClient.$disconnect();
     }
   };
 
-  return (
-+    <Suspense fallback={<span>...loading</span>}>
-+      <TodoList createTodo={createTodo}></TodoList>
-+    </Suspense>
-  );
+  try {
+    return (
+      <div>
+        <TodoCreationForm createTodo={createTodo}></TodoCreationForm>
++        <Suspense fallback={<div>...loading</div>}>
++          <TodoList></TodoList>
++        </Suspense>
+      </div>
+    );
+  } catch (error) {
+    return <div>システムエラーです</div>;
+  }
 }
 
-+function TodoList({ createTodo }: { createTodo: CreateTodoFn }) {
++function TodoList() {
 +  const todos = use(getTodos());
-+
 +  return (
-+    <div>
-+      <TodoCreationForm createTodo={createTodo}></TodoCreationForm>
++    <ul>
 +      {todos.map((x) => (
-+        <div key={x.id}>{x.name}</div>
++        <li key={x.id}>{x.name}</li>
 +      ))}
-+    </div>
++    </ul>
 +  );
 +}
 
@@ -793,113 +858,24 @@ async function getTodos() {
 
 画面を更新すると、loading...と表示されます。
 
-しかし、try-catchが書けなくなったことで、エラーのハンドリングができなくなりました。
+次に`getTodos`で`throw new Error()`をしてみてください。
 
-エラーを捕捉したい場合、`ErrorBoundary`を利用します。
+画面にエラーが表示されてしまいました。
+
+`Suspense`が補足できなかった子コンポーネントで起きたエラーは`UnhandledError`になってしまうためです。
+
+こうしたエラーを捕捉したい場合、`ErrorBoundary`を利用します。
 
 `app/page.tsx`
 
 ```diff
+import cuid from "cuid";
+import { PrismaClient } from "@prisma/client";
+import { TodoCreationForm, CreateTodoFn } from "../components/TodoCreationForm";
+import { revalidatePath } from "next/cache";
 import { Suspense, use } from "react";
+import { sleep } from "../util/sleep";
 +import { ErrorBoundary } from "react-error-boundary";
-import { revalidatePath } from "next/cache";
-import cuid from "cuid";
-import { PrismaClient } from "@prisma/client";
-import { TodoCreationForm, CreateTodoFn } from "../components/TodoCreationForm";
-import { sleep } from "../util/sleep";
-
-export default function Page() {
-  const createTodo: CreateTodoFn = async ({ name }: { name: string }) => {
-    "use server";
-
-    const prismaClient = new PrismaClient();
-
-    try {
-      await prismaClient.$connect();
-
-      const project = await prismaClient.todo.create({
-        data: {
-          id: cuid(),
-          name,
-        },
-      });
-
-      revalidatePath("/");
-
-      return project;
-    } catch (error) {
-      console.error(error);
-    } finally {
-      await prismaClient.$disconnect();
-    }
-  };
-
-  return (
-+    <ErrorBoundary fallback={<div>システムエラーです</div>}>
-      <Suspense fallback={<span>...loading</span>}>
-        <TodoList createTodo={createTodo}></TodoList>
-      </Suspense>
-+    </ErrorBoundary>
-  );
-}
-
-function TodoList({ createTodo }: { createTodo: CreateTodoFn }) {
-  const todos = use(getTodos());
-
-  return (
-    <div>
-      <TodoCreationForm createTodo={createTodo}></TodoCreationForm>
-      {todos.map((x) => (
-        <div key={x.id}>{x.name}</div>
-      ))}
-    </div>
-  );
-}
-
-async function getTodos() {
-  const prismaClient = new PrismaClient();
-  try {
-    await prismaClient.$connect();
-
-    await sleep(2000);
-
-    const todos = await prismaClient.todo.findMany();
-
-+    throw new Error();
-
-    return todos;
-  } catch (error) {
-    throw error;
-  } finally {
-    await prismaClient.$disconnect();
-  }
-}
-```
-
-画面に「システムエラーです」と表示されました。
-
-次のステップに進む前に、`throw new Error();`は消しておいてください。
-
-# 認証を実装する
-
-認証を実装するためには、HTTPリクエストとレスポンスにアクセスする必要があります。
-
-RSC内でそれらにアクセスするためには、`next/headers`パッケージを利用します。
-
-今回は簡便のために、非同期コンポーネント内でawaitします。
-
-もう一度、`async`を付け直し、以下の処理を追加します。
-
-```diff
-import { Suspense, use } from "react";
-import { ErrorBoundary } from "react-error-boundary";
-import { revalidatePath } from "next/cache";
-+import { cookies } from "next/headers";
-import cuid from "cuid";
-import { PrismaClient } from "@prisma/client";
-import { TodoCreationForm, CreateTodoFn } from "../components/TodoCreationForm";
-+import { Redirect } from "../components/Redirect";
-import { sleep } from "../util/sleep";
 
 export default async function Page() {
   const createTodo: CreateTodoFn = async ({ name }: { name: string }) => {
@@ -910,7 +886,7 @@ export default async function Page() {
     try {
       await prismaClient.$connect();
 
-      const project = await prismaClient.todo.create({
+      await prismaClient.todo.create({
         data: {
           id: cuid(),
           name,
@@ -919,9 +895,85 @@ export default async function Page() {
 
       revalidatePath("/");
 
-      return project;
+      return {
+        type: "success",
+      };
     } catch (error) {
       console.error(error);
+
+      return {
+        type: "error",
+      };
+    } finally {
+      await prismaClient.$disconnect();
+    }
+  };
+
+  return (
+    <div>
+      <TodoCreationForm createTodo={createTodo}></TodoCreationForm>
++      <ErrorBoundary fallback={<div>システムエラーです</div>}>
+        <Suspense fallback={<div>...loading</div>}>
+          <TodoList></TodoList>
+        </Suspense>
++      </ErrorBoundary>
+    </div>
+  );
+}
+```
+
+画面に「システムエラーです」と表示されました。
+
+次のステップに進む前に、`throw new Error();`は消しておいてください。
+
+# 小休憩
+
+ここで小休憩を入れましょう。
+
+# 認証を実装する
+
+認証を実装するためには、HTTPリクエストとレスポンスにアクセスする必要があります。
+
+RSC内でそれらにアクセスするためには、`next/headers`パッケージを利用します。
+
+```diff
+import cuid from "cuid";
+import { PrismaClient } from "@prisma/client";
+import { TodoCreationForm, CreateTodoFn } from "../components/TodoCreationForm";
+import { revalidatePath } from "next/cache";
+import { Suspense, use } from "react";
+import { sleep } from "../util/sleep";
+import { ErrorBoundary } from "react-error-boundary";
++import { cookies } from "next/headers";
++import { Redirect } from "../components/Redirect";
+
+export default async function Page() {
+  const createTodo: CreateTodoFn = async ({ name }: { name: string }) => {
+    "use server";
+
+    const prismaClient = new PrismaClient();
+
+    try {
+      await prismaClient.$connect();
+
+      await prismaClient.todo.create({
+        data: {
+          id: cuid(),
+          name,
+        },
+      });
+
+      revalidatePath("/");
+
+      return {
+        type: "success",
+      };
+    } catch (error) {
+      console.error(error);
+
+      return {
+        type: "error",
+      };
     } finally {
       await prismaClient.$disconnect();
     }
@@ -931,6 +983,15 @@ export default async function Page() {
 +  try {
 +    const cookie = cookies();
 +    const loginId = cookie.get("login-id")?.value;
++
++    if (!loginId) {
++      return (
++        <Suspense fallback={<span>...redirecting</span>}>
++          <Redirect url="/login"></Redirect>;
++        </Suspense>
++      );
++    }
++
 +    await prismaClient.$connect();
 +
 +    const now = new Date();
@@ -949,21 +1010,23 @@ export default async function Page() {
 +          <Redirect url="/login"></Redirect>;
 +        </Suspense>
 +      );
-+    } else {
-      return (
-        <ErrorBoundary fallback={<div>システムエラーです</div>}>
-          <Suspense fallback={<span>...loading</span>}>
-            <TodoList createTodo={createTodo}></TodoList>
-          </Suspense>
-        </ErrorBoundary>
-      );
 +    }
 +  } catch (error) {
-+    console.error(error);
 +    return <div>システムエラーです</div>;
 +  } finally {
 +    await prismaClient.$disconnect();
 +  }
+
+  return (
+    <div>
+      <TodoCreationForm createTodo={createTodo}></TodoCreationForm>
+      <ErrorBoundary fallback={<div>システムエラーです</div>}>
+        <Suspense fallback={<div>...loading</div>}>
+          <TodoList></TodoList>
+        </Suspense>
+      </ErrorBoundary>
+    </div>
+  );
 }
 ```
 
@@ -978,6 +1041,26 @@ export default async function Page() {
 ## 練習してみましょう
 
 ここまでに覚えた内容を使って、ログイン機能を作ってみましょう。
+
+**仕様**
+
+- メールアドレスとパスワードを入力し、ログインする
+- メールアドレスとパスワードが一致するユーザーがいた場合、ログインデータを作成し、そのIDをクッキーにセットする（クッキーのキーは`login-id`）
+- ログインに失敗した場合、その旨を表示する
+- ログインに成功した場合、`/`に遷移する
+
+DBスキーマは、`prisma/schema.prisma`ファイルで確認できます。
+
+ユーザーは以下のスクリプトで追加しておきます。
+
+```bash
+npx tsx insert-user.ts
+```
+
+メールアドレス：`test@example.com`
+パスワード：`password`
+
+## 以下、回答
 
 `app/login/page.tsx`
 
@@ -1106,12 +1189,6 @@ export function LoginForm({ login }: { login: LoginFn }) {
 これまた本来は、クッキーの暗号化やB-cryptなどによるパスワードの暗号化が必要ですが、今回はパスしています。
 
 ログインに失敗すると、アラートが表示されます。
-
-今はアカウントが無いため、スクリプトを実行してアカウントを用意しましょう。
-
-```bash
-npx tsx insert-user.ts
-```
 
 メールアドレス：`test@example.com`
 パスワード：`password`
